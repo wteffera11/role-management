@@ -6,7 +6,10 @@
   ],
   "exports": {
     "./styles.css": "./dist/index.css",
-    "./card": "./src/card.tsx"
+    "./card": "./src/card.tsx",
+    "./tree": "./src/mantine-tree/index.tsx",
+    "./tree-models": "./src/mantine-tree/models/index.ts",
+    "./section": "./src/section/section.tsx"
   },
   "license": "MIT",
   "scripts": {
