@@ -15,6 +15,7 @@ export function Card({
       href={`${href}?utm_source=create-turbo&utm_medium=with-tailwind&utm_campaign=create-turbo"`}
       rel="noopener noreferrer"
       target="_blank"
+    // style={{ backgroundColor: "red" }}
     >
       <h2 className="ui-mb-3 ui-text-2xl ui-font-semibold">
         {title}{" "}
