@@ -1,70 +1,93 @@
 'use client'
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { MantineTree } from "@repo/ui/tree"
-import { TreeConfig } from '@repo/ui/tree-models';
+import type { TreeConfig } from '@repo/ui/tree-models';
 import { Section } from "@repo/ui/section"
-import { Box, Button, Divider, Flex, Text, Title } from '@mantine/core';
+import { Box, Button, Divider, Flex, Modal, Skeleton, Text } from '@mantine/core';
 import AddNewRole from '../../_components/add-new/new';
+import Details from '../../_components/details';
+import { useLazyGetChildrenByParentIdQuery, useLazyGetRolesQuery } from '../../../lib/features/roles.api';
+import type { Role } from '../../../models';
 
-function Layout() {
-    const [selectedData, setSelectedData] = useState<any>(null);
-    const [type, setType] = useState<any>(null)
 
-    const config: TreeConfig<any> = {
+function Layout(): JSX.Element {
+    const [fetch, { data: roles, isLoading }] = useLazyGetRolesQuery()
+    const [fetchChildren, { isLoading: isChildrenLoading }] = useLazyGetChildrenByParentIdQuery()
+    const [selectedData, setSelectedData] = useState<{ id: string | number; name: string, parent?: string | null } | null>(null);
+    const [update, setUpdate] = useState<boolean>(false)
+    const [type, setType] = useState<"new" | "detail" | null>(null)
+
+    useEffect(() => {
+        void fetch({})
+    }, [])
+
+
+    const config: TreeConfig<{ id: string | number, name: string, description: string, parentId: string | null }> = {
         id: 'id',
-        label: 'title',
-        onClick: async (data) => {
-            console.log(data)
+        label: 'name',
+        onClick: (data) => {
             setType(selectedData && data.id === selectedData.id ? null : 'detail')
-            setSelectedData(selectedData && data.id === selectedData.id ? null : data);
+            const _selectedData = {
+                id: data.id,
+                name: data.name,
+                description: data.description,
+                parent: data.parentId
+            }
+            setSelectedData(selectedData && data.id === selectedData.id ? null : _selectedData);
         },
-        load: async (data) => {
-            console.log(data)
-        },
+        load: async (record) => {
+            const _children = await fetchChildren({ id: record?.id as string }).unwrap();
+            return {
+                loading: isChildrenLoading,
+                result: _children
+            }
+        }
     };
-    const w = type === "new" ? "40%" : type == "detail" ? "40%" : "100%"
+    const w = type === "new" ? "60%" : type === "detail" ? "60%" : "100%"
 
 
+
+
+    if (isLoading) return <Skeleton />
+    if (!roles) return <Text>Add Roles Here</Text>
     return (
-        <Section collapsible={false} action={<Button onClick={() => {
-            setSelectedData(null)
-            setType(type ? null : 'new');
-        }}
-            bg={type ? "red" : "blue"}
-        >{type ? "Close" : "New"}</Button>}>
-            <Flex align={"flex-start"} gap={"md"}>
-                <Box w={w}>
-                    <MantineTree
-                        config={config}
-                        data={[{ id: 1, title: 'Root', children: [{ id: 2, title: 'Child 1' }, { id: 3, title: 'Child 2' }] }]}
+        <>
+            {update ? <Modal centered
+                onClose={() => { setUpdate(false) }}
+                opened={update}
+                size="lg" title="Update Role">
+                <AddNewRole
+                    fetch={fetch} initialValues={selectedData as unknown as Role}
+                    setSelectedData={setSelectedData}
+                    setType={setType}
+                    setUpdate={setUpdate}
+                />
 
-                    />
-                </Box>
-                <Divider orientation="vertical" />
-                <Box w={type ? "40%" : "0"}>
-                    {type === "new" ? <AddNewRole /> : type === "detail" ? <Box>
-                        <Title className='border-b font-semibold py-2' size={"h3"}>
-                            {selectedData?.title} Role Detail
-                        </Title>
-                        <Box>
-                            <Flex className=" border-b" gap={"md"} align={"center"}>
-                                <label className='w-1/4 px-2 py-3 bg-blue-50'>Role Name</label>
-                                <Text>{selectedData?.title}</Text>
-                            </Flex>
-                            <Flex className=" border-b" gap={"md"} align={"center"}>
-                                <label className='w-1/4 px-2 py-3 bg-blue-50'>Role Description</label>
-                                <Text>{selectedData?.description}</Text>
-                            </Flex>
-                        </Box>
-                        <Flex align={"center"} justify={"flex-end"} gap={"md"} mt={"md"}>
-                            <Button>Update</Button>
-                            <Button bg={"red"}>Cancel</Button>
-                        </Flex>
-                    </Box> : null}
-                </Box>
-            </Flex>
-        </Section >
+            </Modal> : null}
+            <Section action={<Button bg={type === "new" ? "red" : "blue"}
+                onClick={() => {
+                    setSelectedData(null)
+                    setType(type ? null : 'new');
+                }}
+            >{type === "new" ? "Close" : "New"}</Button>} collapsible={false}>
+                <Flex align="flex-start" gap="md">
+                    <Box w={w}>
+                        <MantineTree
+                            config={config}
+                            data={roles}
+
+                        />
+                    </Box>
+                    <Divider orientation="vertical" />
+                    <Box w={type ? "40%" : "0"}>
+                        {type === "new" ?
+                            <AddNewRole fetch={fetch} setSelectedData={setSelectedData} setType={setType} /> : type === "detail"
+                                ? <Details selectedData={selectedData as unknown as Role} setType={setType} setUpdate={setUpdate} />
+                                : null}
+                    </Box>
+                </Flex>
+            </Section >
+        </>
     )
 }
 
